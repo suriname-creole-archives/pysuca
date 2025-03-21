@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "pysuca"
+version = "v0.0.1"
+description = "Work with the SUCA corpus."
+authors = ["BobBorges"]
+repository = "https://github.com/suriname-creole-archives/pysuca"
+readme = "README.md"
+license = "MIT"
+packages = [
+    { include = "pysuca", from = "" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pandas = "*"
+base58 = "*"
+lxml = "*"
+beautifulsoup4 = "*"
+requests = "*"
+numpy = "*"
+tqdm = "*"
+matplotlib = "*"
+
+[tool.poetry.dev-dependencies]
+devtools = "^0.5.1"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
