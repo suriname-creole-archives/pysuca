@@ -1,5 +1,8 @@
 from lxml import etree
-
+import base58
+import hashlib
+import uuid
+import warnings
 
 
 XML_NS = '{http://www.w3.org/XML/1998/namespace}'
@@ -12,6 +15,27 @@ def fetch_ns():
     """
     return {"tei_ns": TEI_NS,
             "xml_ns": XML_NS}
+
+
+def make_xml_id(seed=None):
+    """
+    Generate a UUID and format it in base58.
+    The formatted UUID is prepended bu 'i-' so that it can be used as an XML ID
+
+    Args:
+        seed (str): Random seed. Optional.
+
+    Returns:
+        id (str): formatted UUID
+    """
+    if seed is None:
+        x = uuid.uuid4()
+    else:
+        m = hashlib.md5()
+        m.update(seed.encode('utf-8'))
+        x = uuid.UUID(m.hexdigest())
+
+    return f"i-{str(base58.b58encode(x.bytes), 'UTF8')}"
 
 
 def parse_tei(_path, get_ns=True):
@@ -49,6 +73,23 @@ def write_tei(elem, file_, padding=8, rm_empty=True):
 
         rm_empty (bool): delete elements with no text (default: False)
     """
+    def _sort_attrs(elem):
+        custom_order = ["xml:id", "type", "subtype"]
+        attrs = sorted(elem.attrib.items())
+        if len(attrs) == 0 or type(attrs) == list:
+            return elem
+        d = {}
+        for _ in custom_order:
+            if _ in attrs:
+                d[_] = attrs[_]
+                del attrs[_]
+        for k,v in attrs.items():
+            d[k] = v
+        elem.attrib.clear()
+        for k, v in d.items():
+            elem.attrib[k] = v
+        return elem
+
     def _iter(root, ns="{http://www.tei-c.org/ns/1.0}"):
         for div in root.findall(f".//{ns}div"):
             for ix, elem in enumerate(div):
@@ -86,6 +127,8 @@ def write_tei(elem, file_, padding=8, rm_empty=True):
                     yield "head", elem
                 elif elem.tag == ns + "head":
                     yield "head", elem
+                elif elem.tag == ns + "author":
+                    yield "author", elem
                 else:
                     warnings.warn(f"Unrecognized element {elem.tag}")
                     yield None
@@ -102,26 +145,28 @@ def write_tei(elem, file_, padding=8, rm_empty=True):
                 row += " " + word
         if len(row.strip()) > 0:
             s += row.strip() + "\n" + " " * (spaces - 2)
-        if s.strip() == "":
-            return None
+        #if s.strip() == "":
+        #    return None
         return s
 
     def _format_texts(root, rm_empty, padding=12):
         def _format(elem, rm_empty, padding=12):
+            elem = _sort_attrs(elem)
             if type(elem.text) == str and elem.text is not None and len(elem.text.strip()) > 0:
                 elem.text = _format_paragraph(elem.text, padding+2)
-                print("  ", elem.text)
+                #print("  ", elem.text)
             for child in elem:
-                print("  ", len(child))
+                #print("  ", len(child))
                 child = _format(child, rm_empty, padding=padding+2)
             if elem.text == None and len(elem) == 0 and rm_empty:
                 elem.getparent().remove(elem)
 
         for tag, elem in _iter(root):
-            print(elem)
+            #print(elem)
             elem = _format(elem, rm_empty, padding=padding)
 
         return root
+
 
     elem = _format_texts(elem, rm_empty, padding=padding)
     b = etree.tostring(
